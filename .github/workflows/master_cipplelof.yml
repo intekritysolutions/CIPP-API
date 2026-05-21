@@ -5,9 +5,13 @@ on:
       - master
   workflow_dispatch:
 
+env:
+  AZURE_FUNCTIONAPP_PACKAGE_PATH: '.'
+
 jobs:
   deploy:
     runs-on: windows-latest
+
     steps:
       - name: Checkout GitHub Action
         uses: actions/checkout@v4
@@ -15,32 +19,34 @@ jobs:
       - name: Azure Login
         uses: azure/login@v1
         with:
-          creds: ${{ secrets.AZURE_CREDENTIALS }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_AF358654BD83427AA25DCEDD9FB42C39 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_5AD0CAC591644537A2FB79FAE8D3F3C5 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_5B4E75ED75244724BFECECFE8D81A76A }}
 
       - name: Run Azure Functions Action
         uses: Azure/functions-action@v1
+        id: fa
         with:
           app-name: 'cipplelof'
           slot-name: 'Production'
-          package: '.'
+          package: ${{ env.AZURE_FUNCTIONAPP_PACKAGE_PATH }}
           publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE_DB1837949E224BCCBC780F31E64A5CF0 }}
-          scm-do-build-during-deployment: false
 
       - name: Set WEBSITE_RUN_FROM_PACKAGE to storage URL
         uses: azure/CLI@v1
         with:
           inlineScript: |
-            PACKAGE_URL=$(az storage blob generate-sas \
-              --account-name cippstglelof \
-              --account-key "${{ secrets.STORAGE_ACCOUNT_KEY }}" \
-              --container-name ${{ secrets.STORAGE_CONTAINER }} \
-              --name cipplelof.zip \
-              --permissions r \
-              --expiry 2099-01-01 \
-              --https-only \
-              --full-uri \
-              --output tsv)
-            az functionapp config appsettings set \
-              --name cipplelof \
-              --resource-group CIPP \
-              --settings "WEBSITE_RUN_FROM_PACKAGE=$PACKAGE_URL"
+            $EXPIRY = (Get-Date).AddYears(5).ToString("yyyy-MM-ddTHH:mm:ssZ")
+            $SAS = az storage blob generate-sas `
+              --account-name cippstglelof `
+              --container-name cipplelof-applease `
+              --name cipplelof.zip `
+              --permissions r `
+              --expiry $EXPIRY `
+              --https-only `
+              --full-uri `
+              --output tsv
+            az functionapp config appsettings set `
+              --name cipplelof `
+              --resource-group CIPP `
+              --settings "WEBSITE_RUN_FROM_PACKAGE=$SAS"
